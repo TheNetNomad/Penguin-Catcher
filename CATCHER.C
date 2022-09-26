@@ -1,11 +1,23 @@
 #define TRUE 1
 #define FALSE 0
 
+/*GRPNAM 	#F3C7 	2 	BASE(10) - SCREEN 2 name table
+GRPCOL 	#F3C9 	2 	BASE(11) - SCREEN 2 color table
+GRPCGP 	#F3CB 	2 	BASE(12) - SCREEN 2 character pattern table
+GRPATR 	#F3CD 	2 	BASE(13) - SCREEN 2 sprite attribute table
+GRPPAT 	#F3CF*/
+
 #define LOGOP 0
+/*
 #define GRPCGP 0x0000
 #define GRPCOL 0x2000
 #define GRPATR 0x1B00
 #define GRPPAT 0x3800
+*/
+#define GRPCOL (*(unsigned short *)0xF3C9)
+#define GRPCGP (*(unsigned short *)0xF3CB)
+#define GRPATR (*(unsigned short *)0xF3CD)
+#define GRPPAT (*(unsigned short *)0xF3CF)
 
 #define PADDLE '1'
 #define JOYPAD '2'
@@ -1103,15 +1115,9 @@ static char pad3[] = "2. JOYPAD";
 static char pad4[] = "3. KEYBOARD";
 static char pad5[] = "4. MOUSE (MSX2)";
 static char pad6[] = "SELECT TO BEGIN";
-static char newHTIMIHook[5] = {0xCD,0x00,0x9F,0xC9,0x00 };
+static char newHTIMIHook[5] = {0xCD,0x00,0x9F,0xC9,0x00};
 
-	/*newHTIMIHook[0] = 0xCD;
-	newHTIMIHook[1] = 0x00;
-	newHTIMIHook[2] = 0x9F;
-	newHTIMIHook[3] = 0xC9;
-	newHTIMIHook[4] = 0x00;
-	*/
-
+unsigned int i = 0;
 unsigned char controller = 0;
 unsigned char spr1X = 85;
 unsigned char spr2X = 170;
@@ -1131,7 +1137,7 @@ unsigned char dummy = 0;
 static char strOut[4];
 unsigned char speed = 1;
 
-
+/* From MSXBIOS.H - header file is incomptatible with newer version of HI-TECH C but the library still works! */
 uchar	gtstck(uchar);	/* get stick(ID) status */
 uchar	gttrig(uchar);	/* get trig(ID) status */
 uchar	gtpad(uchar);	/* get touch pad (ID) status */
@@ -1153,15 +1159,18 @@ void close(){
 }
 
 void updateScoreDisplay(){
-	boxfill(0,0,256,16,1,LOGOP); 
+	for(i = GRPCGP;i <= GRPCGP + 255;i++){
+		vpoke(i,0);
+	}
 	
+	color(15,1,1);
 	grpPrintString("SCORE:",0,0);
 	sprintf(&strOut,"%d",score);
 	grpPrintString(strOut,64,0);
 	grpprt('0',LOGOP);
 	grpprt('0',LOGOP);
 	
-	if(remainingTries == 10){
+	if(speed != 1 & remainingTries == 10){
 		grpPrintString("REPLAY!",120,0);
 	}
 	
@@ -1202,7 +1211,7 @@ void gameOver(){
 	grpprt('0',LOGOP);
 	
 	color(12,1,1);
-	grpPrintString("GAME OVER!",90,20);
+	grpPrintString("GAME OVER!",88,20);
 	color(13,1,1);
 	grpPrintString("PRESS FIRE TO TRY AGAIN",40,40);
 	
@@ -1237,12 +1246,7 @@ void gameOver(){
 		while(JIFFY < 2){}
 	}
 	
-	spr1X = 85;
-	spr2X = 170;
-	spr3X = 255;
-	spr4X = 85;
-	spr5X = 170;
-	spr6X = 255;
+
 	clawX = 123;
 	clawY = 40;
 	oldClawY = 0;
@@ -1254,7 +1258,7 @@ void gameOver(){
 	
 	ldirvm(GRPCGP,&bgPatternTable,sizeof(bgPatternTable)); 
 	ldirvm(GRPCOL,&bgColorTable,sizeof(bgColorTable));	
-	color(15,1,1);
+	/*color(15,1,1);*/
 	updateScoreDisplay();
 	
 #asm
@@ -1272,7 +1276,7 @@ void collision(){
 		return;
 	}
 	
-	if(clawY > 140){
+	if(clawY > 150){
 		if(abs(spr1X - clawX) < abs(spr2X - clawX)){
 			spriteNumTemp = 1;
 			dummy = abs(spr1X - clawX);
@@ -1321,9 +1325,6 @@ void collision(){
 				sound(8,15 - JIFFY/4);
 			}
 			sound(7,191);
-			/*remainingTries = 0;
-			clawY = 40;
-			buttonPressed = FALSE;*/
 			gameOver();
 			return;
 	}
@@ -1357,13 +1358,6 @@ void main(){
 	ld hl,09FEFH
 	ld (hl),a
 #endasm
-	
-	/*newHTIMIHook[0] = 0xCD;
-	newHTIMIHook[1] = 0x00;
-	newHTIMIHook[2] = 0x9F;
-	newHTIMIHook[3] = 0xC9;
-	newHTIMIHook[4] = 0x00;
-	*/
 	
 	if(FM_DEVICE != 2){
 		di();
@@ -1431,11 +1425,7 @@ void main(){
 
 	while(TRUE){
 		JIFFY = 0;
-/*
-#asm
-		call 0A00CH
-#endasm
-*/	
+
 		putSprite(0,clawX,clawY,14,0);
 		putSprite(1,spr1X,170,11,2);
 		putSprite(2,spr2X,170,1,4);
@@ -1495,7 +1485,7 @@ void main(){
 		
 		if(clawY > 180){
 			while(clawY > 40){
-				clawY += 1;
+				clawY -= 1;
 				putSprite(0,clawX,clawY,14,0);
 			}
 			clawY = 40;
