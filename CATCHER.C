@@ -1132,7 +1132,7 @@ unsigned char buttonPressed = FALSE;
 unsigned char spriteNumTemp = 0;
 unsigned int score = 0;
 unsigned int replayScore = 30;
-unsigned char remainingTries = 10;
+char remainingTries = 10;
 unsigned char dummy = 0;
 static char strOut[4];
 unsigned char speed = 1;
@@ -1383,6 +1383,7 @@ void main(){
 	grpPrintString(logo6,0,64);
 	grpPrintString(logo7,0,70);
 	grpPrintString(logo8,0,78);
+	grpPrintString("V1.1",256 - (8*4),192-8);
 	
 	boxfill(16,104,143,184,1,LOGOP); 
 	
@@ -1517,7 +1518,7 @@ void main(){
 		}
 		else{
 			sound(8,0);
-			if(remainingTries == 0){
+			if(remainingTries <= 0){
 				if(score >= replayScore){
 					remainingTries = 10;
 					replayScore += 30;
