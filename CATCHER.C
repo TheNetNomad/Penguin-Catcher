@@ -23,6 +23,7 @@ GRPPAT 	#F3CF*/
 #define JOYPAD '2'
 #define KEYBOARD '3'
 #define MOUSE '4'
+#define MARUCON '5'
 
 #define JIFFY (*(unsigned short *)0xFC9E)
 #define TRGFLG (*(unsigned short *)0xF3E8)
@@ -32,7 +33,8 @@ GRPPAT 	#F3CF*/
 #define CLIKSW (*(unsigned short *)0xF3DB)
 #define HTIMI 0xFD9F
 #define HTIMI_OLD 0x9FF0
-#define FM_DEVICE (*(unsigned short *)0x9FEF)
+#define FM_DEVICE (*(unsigned short *)0x9EFF)
+#define MARUCONX (*(unsigned short *)0x9FE0)
 
 #define GFMPRP 	0xA000
 #define GFMON 	0xA003 
@@ -1114,6 +1116,7 @@ static char pad2[] = "1. PADDLE";
 static char pad3[] = "2. JOYPAD";
 static char pad4[] = "3. KEYBOARD";
 static char pad5[] = "4. MOUSE (MSX2)";
+static char pad7[] = "5. SATURN 3D";
 static char pad6[] = "SELECT TO BEGIN";
 static char newHTIMIHook[5] = {0xCD,0x00,0x9F,0xC9,0x00};
 
@@ -1232,6 +1235,45 @@ void gameOver(){
 				TRGFLG = 0;
 			}
 		}
+		
+		if(controller == MARUCON){
+#asm
+	di					
+	call invertStrobe			
+
+	call invertTR			
+	call waitTLTR			
+	;dataszie
+	call invertTR			
+	call waitTLTR			
+	;dpad
+	call invertTR			
+	call waitTLTR			
+		
+	ld a,0FFH
+	ld (TRGFLG1),a
+	
+	;tr high - row1			
+	call invertTR			
+	call waitTLTR		
+	ld a,14
+	call RDPSG
+	ld e,00FH
+	and 00FH
+	cp e
+	jp z,skipButtonGO
+	rlca
+	rlca
+	rlca
+	rlca
+	ld (TRGFLG1),a	
+skipButtonGO:
+	call invertStrobe
+	ei
+
+#endasm			
+		}
+		
 		if((TRGFLG & TRGMSK) != TRGMSK){
 			dummy = TRUE;
 		}
@@ -1383,7 +1425,7 @@ void main(){
 	grpPrintString(logo6,0,64);
 	grpPrintString(logo7,0,70);
 	grpPrintString(logo8,0,78);
-	grpPrintString("V1.1",256 - (8*4),192-8);
+	grpPrintString("V1.2",256 - (8*4),192-8);
 	
 	boxfill(16,104,143,184,1,LOGOP); 
 	
@@ -1393,6 +1435,7 @@ void main(){
 	grpPrintString(pad3,18,136);
 	grpPrintString(pad4,18,146);
 	grpPrintString(pad5,18,156);
+	grpPrintString(pad7,18,166);
 	grpPrintString(pad6,18,176);
 	
 	inispr(3);
@@ -1402,7 +1445,7 @@ void main(){
 
 	while(1){
 		controller = getch();
-		if(controller == PADDLE || controller == JOYPAD || controller == KEYBOARD || controller == MOUSE ){
+		if(controller == PADDLE || controller == JOYPAD || controller == KEYBOARD || controller == MOUSE || controller == MARUCON){
 			break;
 		}
 	}
@@ -1472,6 +1515,139 @@ void main(){
 					clawX = clawX - (255 - gtpad(13));
 				}
 				break; 
+			case MARUCON:
+#asm
+CLS 		equ 000C3H
+CHPUT		equ	000A2H			
+PSG_REGS	equ 0A0H             ; PSG register write port			
+PSG_DATA	equ 0A1H             ; PSG value write port			
+PSG_STAT	equ 0A2H             ; PSG value read port			
+TRGFLG1		equ 0F3E8H
+main:			
+	di					
+	call invertStrobe			
+
+	call invertTR			
+	call waitTLTR			
+	;dataszie
+	call invertTR			
+	call waitTLTR			
+	;dpad
+	call invertTR			
+	call waitTLTR			
+		
+	ld a,0FFH
+	ld (TRGFLG1),a
+	
+	;tr high - row1			
+	call invertTR			
+	call waitTLTR		
+	ld a,14
+	call RDPSG
+	ld e,00FH
+	and 00FH
+	cp e
+	jp z,skipButton
+	rlca
+	rlca
+	rlca
+	rlca
+	ld (TRGFLG1),a			
+skipButton:
+
+	;row 2
+	call invertTR			
+	call waitTLTR			
+	
+	;row3
+	call invertTR			
+	call waitTLTR			
+				
+	;tr - xh			
+	call invertTR			
+	call waitTLTR			
+	ld a,14
+	call RDPSG
+	and 00FH			
+	rlca			
+	rlca			
+	rlca			
+	rlca			
+	ld (09FE0H),a			
+
+	;tr - xl			
+	call invertTR			
+	call waitTLTR	
+	ld a,14
+	call RDPSG
+	and 00FH
+	ld hl,09FE0H
+	add a,(hl)						
+	ld (09FE0H),a			
+				
+	call invertStrobe			
+
+	ei			
+	jp donezo		
+
+
+
+
+waitTLTR:			
+	ld c,020H			
+loop:			
+	ld a,14			
+	call RDPSG			
+	and 00110000B			
+	ld b,00110000B			
+	cp b			
+	jp z,gotIt			
+	ld b,0			
+	cp b			
+	jp z,gotIt			
+	dec c 			
+	jp nz,loop					
+gotIt:			
+	ret   			
+
+
+
+invertTR:						
+	ld a,15			
+	call RDPSG			
+	xor 00000010B			
+	ld e,a			
+	ld a,15			
+	call WRTPSG			
+	ret			
+
+invertStrobe:						
+	ld a,15			
+	call RDPSG			
+	and 10111111B			
+	xor 00010000B			
+	ld e,a			
+	ld a,15			
+	call WRTPSG			
+	ret			
+		
+
+RDPSG:			
+	out     (PSG_REGS),a			
+	in      a,(PSG_STAT)		
+	ret			
+	 
+WRTPSG:			
+	out     (PSG_REGS),a			
+	push    af			
+	ld      a,e			
+	out     (PSG_DATA),a			
+	pop     af		
+	ret	
+donezo:
+#endasm			
+					clawX = MARUCONX - 11;
+				break;
 		}
 			
 
@@ -1500,6 +1676,12 @@ void main(){
 				TRGFLG = 0;
 			}
 		}
+		
+		/*if(controller == MARUCON){
+			if(gtpdl(9) == 0){
+				TRGFLG = 0;
+			}
+		}*/
 		
 		dummy = TRGFLG & TRGMSK;
 	
